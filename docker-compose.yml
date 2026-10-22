@@ -62,10 +62,77 @@ services:
       - gallery
       - phpmyadmin
 
+  # ================= GIAM SAT (COMMIT 2) =================
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: gallery_node_exporter
+    restart: always
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - backend_net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: gallery_cadvisor
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - backend_net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gallery_prometheus
+    restart: always
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - backend_net
+      - frontend_net
+    depends_on:
+      - node_exporter
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gallery_grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=AdminGrafana@2026
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - frontend_net
+      - backend_net
+    depends_on:
+      - prometheus
+
 volumes:
   db_data:
   gallery_config:
   gallery_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   frontend_net:
