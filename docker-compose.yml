@@ -1,0 +1,74 @@
+version: '3.3'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: gallery_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: StrongPasswordRoot@2026
+      MYSQL_DATABASE: piwigo
+      MYSQL_USER: gallery_user
+      MYSQL_PASSWORD: StrongPasswordUser@2026
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend_net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: gallery_pma
+    restart: always
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 50M
+    networks:
+      - backend_net
+      - frontend_net
+    depends_on:
+      - db
+
+  gallery:
+    image: linuxserver/piwigo:latest
+    container_name: gallery_app
+    restart: always
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - gallery_config:/config
+      - gallery_data:/gallery
+    networks:
+      - backend_net
+      - frontend_net
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:alpine
+    container_name: gallery_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - frontend_net
+    depends_on:
+      - gallery
+      - phpmyadmin
+
+volumes:
+  db_data:
+  gallery_config:
+  gallery_data:
+
+networks:
+  frontend_net:
+    driver: bridge
+  backend_net:
+    driver: bridge
